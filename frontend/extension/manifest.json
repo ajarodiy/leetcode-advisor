@@ -1,0 +1,35 @@
+{
+    "manifest_version": 3,
+    "name": "LeetCode Advisor",
+    "version": "1.0",
+    "description": "Analyzes your LeetCode activity and gives personalized insights.",
+    "action": {
+        "default_popup": "index.html",
+        "default_icon": "icon.png"
+    },
+    "icons": {
+        "128": "icon.png"
+    },
+    "permissions": [
+        "storage",
+        "activeTab",
+        "scripting"
+    ],
+    "host_permissions": [
+        "https://leetcode.com/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "https://leetcode.com/problems/*"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ],
+    "background": {
+        "service_worker": "background.js"
+    }
+}
