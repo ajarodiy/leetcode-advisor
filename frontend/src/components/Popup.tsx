@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Header from './Header';
 import Insights from './Insights';
@@ -7,42 +7,49 @@ import Footer from './Footer';
 import { Insight, Question, LastProblem } from '../types';
 
 const Popup: React.FC = () => {
-  // Mock data (in a real extension, this would come from the extension's state)
-  const insights: Insight[] = [
-    { id: '1', text: 'Dynamic Programming seems to be your weak spot. Try focusing on memoization techniques.' },
-    { id: '2', text: 'You excel at Array problems. Consider tackling harder variations.' },
-    { id: '3', text: 'Try "Merge Intervals" next - it aligns with your learning path.' }
-  ];
+    // Mock data (in a real extension, this would come from the extension's state)
+    const insights: Insight[] = [
+        { id: '1', text: 'Dynamic Programming seems to be your weak spot. Try focusing on memoization techniques.' },
+        { id: '2', text: 'You excel at Array problems. Consider tackling harder variations.' },
+        { id: '3', text: 'Try "Merge Intervals" next - it aligns with your learning path.' }
+    ];
 
-  const questions: Question[] = [
-    { id: '1', text: 'What should I solve next?', icon: 'arrow-right' },
-    { id: '2', text: 'What are my weak areas?', icon: 'activity' },
-    { id: '3', text: 'What are my strong areas?', icon: 'trophy' },
-    { id: '4', text: 'How can I improve?', icon: 'trending-up' },
-    { id: '5', text: 'What\'s the time complexity of my last solution?', icon: 'clock' }
-  ];
+    const questions: Question[] = [
+        { id: '1', text: 'What should I solve next?', icon: 'arrow-right' },
+        { id: '2', text: 'What are my weak areas?', icon: 'activity' },
+        { id: '3', text: 'What are my strong areas?', icon: 'trophy' },
+        { id: '4', text: 'How can I improve?', icon: 'trending-up' },
+        { id: '5', text: 'What\'s the time complexity of my last solution?', icon: 'clock' }
+    ];
 
-  const lastProblem: LastProblem = {
-    name: 'Two Sum',
-    status: 'Accepted',
-    timestamp: '2 hours ago'
-  };
+    const [lastProblem, setLastProblem] = useState<LastProblem | null>(null);
 
-  return (
-    <motion.div 
-      className="w-[300px] h-[500px] bg-gray-900 rounded-lg overflow-hidden flex flex-col"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Header />
-      <div className="flex-1 overflow-auto px-4 py-2">
-        <Insights insights={insights} />
-        <Questions questions={questions} />
-      </div>
-      <Footer lastProblem={lastProblem} />
-    </motion.div>
-  );
+    useEffect(() => {
+        chrome.storage.local.get('lastProblem', (result) => {
+            if (result.lastProblem) {
+                console.log("✅ Loaded from chrome.storage:", result.lastProblem);
+                setLastProblem(result.lastProblem);
+            } else {
+                console.log("ℹ️ No lastProblem in storage");
+            }
+        });
+    }, []);
+
+    return (
+        <motion.div
+            className="w-[300px] h-[500px] bg-gray-900 rounded-lg overflow-hidden flex flex-col"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+        >
+            <Header />
+            <div className="flex-1 overflow-auto px-4 py-2">
+                <Insights insights={insights} />
+                <Questions questions={questions} />
+            </div>
+            {lastProblem && <Footer lastProblem={lastProblem} />}
+        </motion.div>
+    );
 };
 
 export default Popup;
