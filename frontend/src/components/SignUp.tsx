@@ -44,7 +44,7 @@ const SignUp: React.FC<SignUpProps> = ({ onSignUp, onSwitchToSignIn, signUpError
       transition={{ duration: 0.3 }}
     >
       <div className="bg-black p-4 border-b border-gray-800">
-        <h1 className="text-white text-lg font-semibold">🧠 LeetCode Assistant</h1>
+        <h1 className="text-white text-lg font-semibold">🧠 LeetCode Advisor</h1>
         <p className="text-gray-400 text-xs mt-1">Create your account</p>
       </div>
 

@@ -28,7 +28,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
           >
             <Brain className="text-yellow-400 w-6 h-6" />
           </motion.div>
-          <h1 className="text-white text-lg font-semibold">🧠 AI Insights</h1>
+          <h1 className="text-white text-lg font-semibold">AI Insights</h1>
         </div>
         <motion.button
           className="text-gray-400 hover:text-white transition-colors"

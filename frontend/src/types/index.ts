@@ -14,3 +14,17 @@ export interface LastProblem {
     status: 'Accepted' | 'Wrong Answer' | 'Time Limit Exceeded' | 'Runtime Error';
     timestamp: string;
 }
+
+export interface CurrentProblem {
+    name: string | null;
+    difficulty: 'Easy' | 'Medium' | 'Hard' | null;
+    userCode: string | null;
+    language: 'cpp' | 'java' | 'python';
+}
+
+export interface Solution {
+    code: string;
+    explanation: string;
+    timeComplexity: string;
+    spaceComplexity: string;
+}
