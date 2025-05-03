@@ -36,3 +36,16 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #444 #1f1f1f;
 }
+
+/* Override Prism.js styles */
+:not(pre) > code[class*="language-"],
+pre[class*="language-"] {
+  background: #2d2d2d !important;
+}
+
+code[class*="language-"],
+pre[class*="language-"] {
+  text-shadow: none !important;
+  font-size: 0.85rem !important;
+  line-height: 1.25rem !important;
+}

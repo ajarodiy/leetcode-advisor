@@ -4,6 +4,8 @@ import Header from './Header';
 import Insights from './Insights';
 import Questions from './Questions';
 import Footer from './Footer';
+import CurrentProblem from './CurrentProblem';
+import { CurrentProblem as CurrentProblemType } from '../types';
 import { Insight, Question, LastProblem } from '../types';
 
 interface PopupProps {
@@ -26,7 +28,15 @@ const Popup: React.FC<PopupProps> = ({ onLogout }) => {
         { id: '5', text: 'What\'s the time complexity of my last solution?', icon: 'clock' }
     ];
 
+    const currentProblem: CurrentProblemType = {
+        name: 'Two Sum',
+        difficulty: 'Easy',
+        userCode: null,
+        language: 'python'
+    };
+
     const [lastProblem, setLastProblem] = useState<LastProblem | null>(null);
+    const [showSolution, setShowSolution] = useState(false);
 
     useEffect(() => {
         if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
@@ -45,13 +55,28 @@ const Popup: React.FC<PopupProps> = ({ onLogout }) => {
 
     return (
         <motion.div
-            className="w-[300px] h-[500px] bg-gray-900 rounded-lg overflow-hidden flex flex-col"
+            className="bg-gray-900 rounded-lg overflow-hidden flex flex-col"
             initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+            animate={{
+                opacity: 1,
+                y: 0,
+                width: showSolution ? 600 : 300,
+                height: showSolution ? 700 : 500,
+            }}
+            transition={{
+                duration: 0.3,
+                type: 'spring',
+                stiffness: 200,
+                damping: 25,
+            }}
         >
             <Header onLogout={onLogout} />
             <div className="flex-1 overflow-auto px-4 py-2">
+                <CurrentProblem
+                    problem={currentProblem}
+                    showSolution={showSolution}
+                    onToggleSolution={setShowSolution}
+                />
                 <Insights insights={insights} />
                 <Questions questions={questions} />
             </div>
