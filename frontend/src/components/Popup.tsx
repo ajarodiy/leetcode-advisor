@@ -6,8 +6,12 @@ import Questions from './Questions';
 import Footer from './Footer';
 import { Insight, Question, LastProblem } from '../types';
 
-const Popup: React.FC = () => {
-    // Mock data (in a real extension, this would come from the extension's state)
+interface PopupProps {
+    onLogout: () => void;
+}
+
+const Popup: React.FC<PopupProps> = ({ onLogout }) => {
+    // Mock data (this would come from the extension's state)
     const insights: Insight[] = [
         { id: '1', text: 'Dynamic Programming seems to be your weak spot. Try focusing on memoization techniques.' },
         { id: '2', text: 'You excel at Array problems. Consider tackling harder variations.' },
@@ -25,14 +29,18 @@ const Popup: React.FC = () => {
     const [lastProblem, setLastProblem] = useState<LastProblem | null>(null);
 
     useEffect(() => {
-        chrome.storage.local.get('lastProblem', (result) => {
-            if (result.lastProblem) {
-                console.log("✅ Loaded from chrome.storage:", result.lastProblem);
-                setLastProblem(result.lastProblem);
-            } else {
-                console.log("ℹ️ No lastProblem in storage");
-            }
-        });
+        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+            chrome.storage.local.get('lastProblem', (result) => {
+                if (result.lastProblem) {
+                    console.log("✅ Loaded from chrome.storage:", result.lastProblem);
+                    setLastProblem(result.lastProblem);
+                } else {
+                    console.log("ℹ️ No lastProblem in storage");
+                }
+            });
+        } else {
+            console.warn("⚠️ chrome.storage.local is not available — are you running this outside a Chrome extension?");
+        }
     }, []);
 
     return (
@@ -42,7 +50,7 @@ const Popup: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
         >
-            <Header />
+            <Header onLogout={onLogout} />
             <div className="flex-1 overflow-auto px-4 py-2">
                 <Insights insights={insights} />
                 <Questions questions={questions} />
