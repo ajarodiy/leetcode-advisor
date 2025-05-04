@@ -7,26 +7,16 @@ import Footer from './Footer';
 import CurrentProblem from './CurrentProblem';
 import { CurrentProblem as CurrentProblemType } from '../types';
 import { Insight, Question, LastProblem } from '../types';
+import API_BASE_URL from '../config';
+import { getAuth } from "firebase/auth";
 
 interface PopupProps {
+    userId: string;
     onLogout: () => void;
 }
 
-const Popup: React.FC<PopupProps> = ({ onLogout }) => {
-    const insights: Insight[] = [
-        { id: '1', text: 'Dynamic Programming seems to be your weak spot. Try focusing on memoization techniques.' },
-        { id: '2', text: 'You excel at Array problems. Consider tackling harder variations.' },
-        { id: '3', text: 'Try "Merge Intervals" next - it aligns with your learning path.' }
-    ];
-
-    const questions: Question[] = [
-        { id: '1', text: 'What should I solve next?', icon: 'arrow-right' },
-        { id: '2', text: 'What are my weak areas?', icon: 'activity' },
-        { id: '3', text: 'What are my strong areas?', icon: 'trophy' },
-        { id: '4', text: 'How can I improve?', icon: 'trending-up' },
-        { id: '5', text: 'What\'s the time complexity of my last solution?', icon: 'clock' }
-    ];
-
+const Popup: React.FC<PopupProps> = ({ userId, onLogout }) => {
+    const [insights, setInsights] = useState<Insight[]>([]);
     const [currentProblem, setCurrentProblem] = useState<CurrentProblemType>({
         name: null,
         difficulty: null,
@@ -38,6 +28,11 @@ const Popup: React.FC<PopupProps> = ({ onLogout }) => {
     const [showSolution, setShowSolution] = useState(false);
 
     useEffect(() => {
+        if (!window.chrome?.tabs || !window.chrome?.scripting) {
+            console.warn("Chrome extension APIs not available. Skipping script execution.");
+            return;
+        }
+
         // Fetch last problem from local storage
         if (chrome?.storage?.local) {
             chrome.storage.local.get('lastProblem', (result) => {
@@ -75,7 +70,50 @@ const Popup: React.FC<PopupProps> = ({ onLogout }) => {
                 if (data) setCurrentProblem(data);
             }).catch(console.error);
         });
-    }, []);
+
+        // Fetch insights
+        const fetchInsights = async () => {
+            try {
+                const auth = getAuth();
+                const user = auth.currentUser;
+
+                if (!user) {
+                    console.error("No authenticated user found.");
+                    return;
+                }
+
+                const token = await user.getIdToken();
+
+                const res = await fetch(`${API_BASE_URL}/user-insights/${userId}`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                const data = await res.json();
+                const parsed: Insight[] = data.insights
+                    .split('\n')
+                    .filter(Boolean)
+                    .map((line: string, idx: number) => ({
+                        id: `insight-${idx}`,
+                        text: line.trim(),
+                    }));
+                setInsights(parsed);
+            } catch (e) {
+                console.error("Failed to fetch insights", e);
+            }
+        };
+
+        fetchInsights();
+    }, [userId]);
+
+    const questions: Question[] = [
+        { id: '1', text: 'What should I solve next?', icon: 'arrow-right' },
+        { id: '2', text: 'What are my weak areas?', icon: 'activity' },
+        { id: '3', text: 'What are my strong areas?', icon: 'trophy' },
+        { id: '4', text: 'How can I improve?', icon: 'trending-up' },
+        { id: '5', text: 'What\'s the time complexity of my last solution?', icon: 'clock' }
+    ];
 
     return (
         <motion.div

@@ -8,6 +8,25 @@ interface InsightsProps {
 }
 
 const Insights: React.FC<InsightsProps> = ({ insights }) => {
+  if (!insights || insights.length === 0) {
+    return (
+      <motion.div
+        className="mb-4"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className="flex items-center mb-2">
+          <Sparkles className="text-yellow-400 w-4 h-4 mr-2" />
+          <h2 className="text-white text-sm font-medium">Smart Suggestions</h2>
+        </div>
+        <div className="bg-gray-800 p-3 rounded-lg text-gray-400 text-sm">
+          No data to generate insights yet. Keep solving problems on LeetCode with this extension active!
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div 
       className="mb-4"

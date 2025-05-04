@@ -6,7 +6,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthState
 import { auth } from "./firebase";
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const [authError, setAuthError] = useState("");
 
@@ -14,7 +14,6 @@ function App() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       setAuthError("");
-      setIsAuthenticated(true);
     } catch (error) {
       setAuthError((error as any).message);
     }
@@ -24,7 +23,6 @@ function App() {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
       setAuthError("");
-      setIsAuthenticated(true);
     } catch (error) {
       setAuthError((error as any).message);
     }
@@ -32,13 +30,17 @@ function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsAuthenticated(!!user);
+      if (user) {
+        setUserId(user.uid);
+      } else {
+        setUserId(null);
+      }
     });
 
     return () => unsubscribe();
   }, []);
 
-  if (!isAuthenticated) {
+  if (!userId) {
     return (
       <div className="min-h-screen bg-gray-800 flex items-center justify-center p-4">
         {isSignUp ? (
@@ -58,14 +60,16 @@ function App() {
     );
   }
 
-  console.log("Rendering Popup because user is authenticated");
   return (
     <div className="min-h-screen bg-gray-800 flex items-center justify-center p-4">
-      <Popup onLogout={() => {
-        signOut(auth)
-          .then(() => setIsAuthenticated(false))
-          .catch((err) => console.error("Logout failed", err));
-      }} />
+      <Popup 
+        userId={userId}
+        onLogout={() => {
+          signOut(auth)
+            .then(() => setUserId(null))
+            .catch((err) => console.error("Logout failed", err));
+        }} 
+      />
     </div>
   );
 }
