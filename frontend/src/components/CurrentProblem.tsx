@@ -115,7 +115,7 @@ const CurrentProblem: React.FC<CurrentProblemProps> = ({
                 </button>
               </div>
 
-              <CodeWindow code={solution.code} language={selectedLanguage} />
+              <CodeWindow code={problem.userCode || '// No code found'} language={selectedLanguage} />
 
               <div className="mt-4 space-y-3">
                 <div>

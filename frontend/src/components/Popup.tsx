@@ -13,7 +13,6 @@ interface PopupProps {
 }
 
 const Popup: React.FC<PopupProps> = ({ onLogout }) => {
-    // Mock data (this would come from the extension's state)
     const insights: Insight[] = [
         { id: '1', text: 'Dynamic Programming seems to be your weak spot. Try focusing on memoization techniques.' },
         { id: '2', text: 'You excel at Array problems. Consider tackling harder variations.' },
@@ -28,29 +27,54 @@ const Popup: React.FC<PopupProps> = ({ onLogout }) => {
         { id: '5', text: 'What\'s the time complexity of my last solution?', icon: 'clock' }
     ];
 
-    const currentProblem: CurrentProblemType = {
-        name: 'Two Sum',
-        difficulty: 'Easy',
+    const [currentProblem, setCurrentProblem] = useState<CurrentProblemType>({
+        name: null,
+        difficulty: null,
         userCode: null,
         language: 'python'
-    };
+    });
 
     const [lastProblem, setLastProblem] = useState<LastProblem | null>(null);
     const [showSolution, setShowSolution] = useState(false);
 
     useEffect(() => {
-        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+        // Fetch last problem from local storage
+        if (chrome?.storage?.local) {
             chrome.storage.local.get('lastProblem', (result) => {
                 if (result.lastProblem) {
-                    console.log("✅ Loaded from chrome.storage:", result.lastProblem);
                     setLastProblem(result.lastProblem);
-                } else {
-                    console.log("ℹ️ No lastProblem in storage");
                 }
             });
-        } else {
-            console.warn("⚠️ chrome.storage.local is not available — are you running this outside a Chrome extension?");
         }
+
+        // Get current problem info and user code from LeetCode tab
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tabId = tabs[0]?.id;
+            if (!tabId) return;
+
+            chrome.scripting.executeScript({
+                target: { tabId },
+                func: () => {
+                    const titleEl = document.querySelector('div.text-title-large a[href^="/problems/"]');
+                    const difficultyEl = document.querySelector('div[class*="text-difficulty-"]');
+                    const model = (window as any).monaco?.editor?.getModels?.()[0];
+                    const code = model?.getValue();
+
+                    const title = (titleEl as HTMLElement | null)?.innerText?.trim() ?? null;
+                    const difficulty = (difficultyEl as HTMLElement | null)?.innerText?.trim() as 'Easy' | 'Medium' | 'Hard' ?? null;
+
+                    return {
+                        name: title,
+                        difficulty,
+                        userCode: code ?? null,
+                        language: 'python' as const
+                    };
+                }
+            }).then((results) => {
+                const data = results?.[0]?.result;
+                if (data) setCurrentProblem(data);
+            }).catch(console.error);
+        });
     }, []);
 
     return (

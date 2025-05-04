@@ -1,5 +1,10 @@
 console.log("LeetCode Advisor content script loaded");
 
+const script = document.createElement('script');
+script.src = chrome.runtime.getURL('page-inject.js');
+script.onload = () => script.remove();
+(document.head || document.documentElement).appendChild(script);
+
 function getProblemName() {
     const h1 = document.querySelector('h1');
     let name = h1 ? h1.innerText.trim() : null;
@@ -11,16 +16,36 @@ function getProblemName() {
         name = slug ? slug.replace(/-/g, ' ') : null;
     }
 
-    console.log("🔍 Problem name detected:", name);
     return name;
 }
 
 function getSubmissionResult() {
     const el = document.querySelector('[data-e2e-locator="submission-result"]');
     const result = el ? el.textContent.trim() : null;
-    console.log("📬 Submission result detected:", result);
     return result;
 }
+
+const getCurrentProblemInfo = () => {
+    const title = document.querySelector('.css-v3d350')?.innerText;
+    const url = window.location.href;
+    const slug = url.split('/problems/')[1]?.split('/')[0];
+    const difficulty = document.querySelector('[diff]')?.innerText;
+
+    const info = { title, slug, url, difficulty };
+    return info;
+};
+
+const getCurrentSolution = () => {
+    const editor = document.querySelector('.monaco-editor');
+    if (!editor) {
+        console.log("⚠️ Monaco editor not found yet.");
+        return null;
+    }
+    const model = monaco.editor.getModels()[0];
+    const code = model?.getValue();
+
+    return code;
+};
 
 let lastStored = null;
 let lastLoggedTime = 0;
@@ -42,7 +67,6 @@ const observer = new MutationObserver(() => {
             const timestamp = new Date().toISOString();
             const data = { name, status: verdict, timestamp };
 
-            console.log("✅ Stored to chrome.storage:", data);
             chrome.storage.local.set({ lastProblem: data });
 
             lastStored = signature;
@@ -52,3 +76,5 @@ const observer = new MutationObserver(() => {
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
+window.getCurrentProblemInfo = getCurrentProblemInfo;
+window.getCurrentSolution = getCurrentSolution;
