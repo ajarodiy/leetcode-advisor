@@ -1,80 +1,132 @@
-console.log("LeetCode Advisor content script loaded");
+// Centralized backend URL
+const API_BASE_URL = "http://localhost:8000"; // change this when deploying
 
-const script = document.createElement('script');
-script.src = chrome.runtime.getURL('page-inject.js');
-script.onload = () => script.remove();
-(document.head || document.documentElement).appendChild(script);
-
-function getProblemName() {
-    const h1 = document.querySelector('h1');
-    let name = h1 ? h1.innerText.trim() : null;
-
-    // Backup: Try to get it from URL
-    if (!name) {
-        const parts = window.location.pathname.split('/');
-        const slug = parts[2]; // leetcode.com/problems/[slug]/
-        name = slug ? slug.replace(/-/g, ' ') : null;
-    }
-
-    return name;
+function getVerdictElement() {
+    const el = document.querySelector("div.text-sm.font-medium.text-label-1");
+    return el ? el.innerText : null;
 }
 
-function getSubmissionResult() {
-    const el = document.querySelector('[data-e2e-locator="submission-result"]');
-    const result = el ? el.textContent.trim() : null;
-    return result;
+function getProblemTitle() {
+    const titleEl = document.querySelector('div.text-title-large a[href^="/problems/"]');
+    return titleEl ? titleEl.innerText.trim() : null;
 }
 
-const getCurrentProblemInfo = () => {
-    const title = document.querySelector('.css-v3d350')?.innerText;
-    const url = window.location.href;
-    const slug = url.split('/problems/')[1]?.split('/')[0];
-    const difficulty = document.querySelector('[diff]')?.innerText;
+function getSlugFromTitle(title) {
+    return title?.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "") || null;
+}
 
-    const info = { title, slug, url, difficulty };
-    return info;
+window.getCurrentProblemInfo = function () {
+    const titleEl = document.querySelector('div.text-title-large a[href^="/problems/"]');
+    const difficultyEl = document.querySelector('div[class*="text-difficulty-"]');
+
+    const title = titleEl?.innerText?.trim() ?? null;
+    const difficulty = difficultyEl?.innerText?.trim() ?? null;
+
+    return {
+        title,
+        slug: title?.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "") ?? null,
+        difficulty
+    };
 };
 
-const getCurrentSolution = () => {
-    const editor = document.querySelector('.monaco-editor');
-    if (!editor) {
-        console.log("⚠️ Monaco editor not found yet.");
-        return null;
+// Expose user code to window
+window.getCurrentSolution = function () {
+    const model = window.monaco?.editor?.getModels?.()[0];
+    return model?.getValue() ?? null;
+};
+
+// Solving timer logic
+let solvingStart = null;
+function startSolvingTimer() {
+    if (!solvingStart) {
+        solvingStart = Date.now();
+        console.log("⏱️ Timer started");
+        chrome.storage.local.set({ solvingStart });
     }
-    const model = monaco.editor.getModels()[0];
-    const code = model?.getValue();
+}
+function getTimeTakenSec() {
+    return solvingStart ? Math.floor((Date.now() - solvingStart) / 1000) : null;
+}
+window.getSolvingTimeInSeconds = getTimeTakenSec;
 
-    return code;
-};
-
-let lastStored = null;
-let lastLoggedTime = 0;
-const THROTTLE_MS = 2000;
-
-// Watch DOM changes to detect verdict
-const observer = new MutationObserver(() => {
-    const now = Date.now();
-
-    // throttle the handler
-    if (now - lastLoggedTime < THROTTLE_MS) return;
-
-    const verdict = getSubmissionResult();
-    const name = getProblemName();
-
-    if (verdict && name) {
-        const signature = `${name}-${verdict}`;
-        if (signature !== lastStored) {
-            const timestamp = new Date().toISOString();
-            const data = { name, status: verdict, timestamp };
-
-            chrome.storage.local.set({ lastProblem: data });
-
-            lastStored = signature;
-            lastLoggedTime = now;
-        }
+// Start timer on code edit
+window.addEventListener("keydown", () => {
+    if (document.querySelector(".monaco-editor")) {
+        startSolvingTimer();
     }
 });
 
-observer.observe(document.body, { childList: true, subtree: true });
-window.getCurrentProblemInfo = getCurrentProblemInfo;
-window.getCurrentSolution = getCurrentSolution;
+// Send attempt data to backend
+async function sendProblemAttempt() {
+    const { title, slug } = window.getCurrentProblemInfo() || {};
+    const code = window.getCurrentSolution();
+    const durationSec = window.getSolvingTimeInSeconds?.() ?? null;
+
+    if (!slug || !code || !durationSec) {
+        console.warn("Missing problem data. Skipping log.");
+        return;
+    }
+
+    const payload = {
+        timestamp: new Date().toISOString(),
+        durationSec,
+        code,
+        language: 'python',
+        isOptimal: true,
+        usedHint: false
+    };
+
+    const { uid, token } = await new Promise((resolve) => {
+        chrome.storage.local.get(['uid', 'token'], resolve);
+    });
+
+    if (!uid || !token) {
+        console.warn("User not authenticated.");
+        return;
+    }
+
+    fetch(`${API_BASE_URL}/submitAttempt/${uid}/${slug}`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+    })
+    .then((res) => res.json())
+    .then((res) => console.log("✅ Logged attempt:", res))
+    .catch((err) => console.error("❌ Logging failed:", err));
+}
+
+// Mutation observer to watch for verdicts
+let lastStored = "";
+let lastLoggedTime = 0;
+
+const observer = new MutationObserver(() => {
+    const verdict = getVerdictElement();
+    const name = getProblemTitle();
+    if (!verdict || !name) return;
+
+    const now = Date.now();
+    const signature = `${name}-${verdict}`;
+
+    if (signature !== lastStored && now - lastLoggedTime > 1000) {
+        chrome.storage.local.set({
+            lastProblem: {
+                name,
+                status: verdict,
+                timestamp: new Date().toISOString()
+            }
+        });
+
+        lastStored = signature;
+        lastLoggedTime = now;
+
+        sendProblemAttempt();
+    }
+});
+
+observer.observe(document.body, {
+    childList: true,
+    subtree: true
+});

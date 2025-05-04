@@ -27,3 +27,25 @@ console.log("🧠 page-inject.js loaded!");
         return code;
     };
 })();
+
+let solvingStart = null;
+
+function startSolvingTimer() {
+    if (!solvingStart) {
+        solvingStart = Date.now();
+        console.log("⏱️ Timer started!");
+        chrome.storage.local.set({ solvingStart: solvingStart });
+    }
+}
+
+function getTimeTakenSec() {
+    return solvingStart ? Math.floor((Date.now() - solvingStart) / 1000) : null;
+}
+
+window.addEventListener("keydown", (e) => {
+    if (document.querySelector(".monaco-editor")) {
+        startSolvingTimer();
+    }
+});
+
+window.getSolvingTimeInSeconds = getTimeTakenSec;

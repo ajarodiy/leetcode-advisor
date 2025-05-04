@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from models.problem_model import ProblemSubmitRequest
 from services.firestore_service import save_problem_attempt
 from auth_utils import verify_token

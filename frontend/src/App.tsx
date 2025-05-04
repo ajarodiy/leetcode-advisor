@@ -4,6 +4,7 @@ import SignUp from './components/SignUp';
 import Popup from './components/Popup';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./firebase";
+import { getAuth } from 'firebase/auth';
 
 function App() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -29,15 +30,34 @@ function App() {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
+
+        const token = await user.getIdToken();
+        chrome.storage?.local?.set({ uid: user.uid, token });
       } else {
         setUserId(null);
+        chrome.storage?.local?.remove(['uid', 'token']);
       }
     });
 
     return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const auth = getAuth();
+  
+    const interval = setInterval(async () => {
+      const user = auth.currentUser;
+      if (user) {
+        const token = await user.getIdToken(true); // 🔁 force refresh
+        chrome.storage?.local?.set({ uid: user.uid, token });
+        console.log("🔄 Firebase token refreshed");
+      }
+    }, 55 * 60 * 1000); // refresh every 55 minutes
+  
+    return () => clearInterval(interval);
   }, []);
 
   if (!userId) {
@@ -62,13 +82,13 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-800 flex items-center justify-center p-4">
-      <Popup 
+      <Popup
         userId={userId}
         onLogout={() => {
           signOut(auth)
             .then(() => setUserId(null))
             .catch((err) => console.error("Logout failed", err));
-        }} 
+        }}
       />
     </div>
   );
