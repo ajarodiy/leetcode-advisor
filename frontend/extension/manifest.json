@@ -30,15 +30,6 @@
         }
     ],
     "web_accessible_resources": [
-        {
-            "resources": [
-                "page-inject.js",
-                "feedback.bundle.js"
-            ],
-            "matches": [
-                "<all_urls>"
-            ]
-        }
     ],
     "background": {
         "service_worker": "background.js"

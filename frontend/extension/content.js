@@ -1,8 +1,8 @@
-// Centralized backend URL
-const API_BASE_URL = "http://localhost:8000"; // change this when deploying
+const API_BASE_URL = "http://localhost:8000"; // Update on deploy
 
+// Selectors
 function getVerdictElement() {
-    const el = document.querySelector("div.text-sm.font-medium.text-label-1");
+    const el = document.querySelector('span[data-e2e-locator="submission-result"]');
     return el ? el.innerText : null;
 }
 
@@ -24,18 +24,37 @@ window.getCurrentProblemInfo = function () {
 
     return {
         title,
-        slug: title?.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "") ?? null,
+        slug: getSlugFromTitle(title),
         difficulty
     };
 };
 
-// Expose user code to window
+// Extract user code: Try Monaco first, fallback to <code> block after submit
 window.getCurrentSolution = function () {
-    const model = window.monaco?.editor?.getModels?.()[0];
-    return model?.getValue() ?? null;
+    try {
+        // 1. Monaco editor (live editing)
+        const model = window.monaco?.editor?.getModels?.()[0];
+        const monacoCode = model?.getValue();
+        if (monacoCode?.trim()) return monacoCode;
+
+        // 2. Rendered code block after submission
+        const renderedBlock = document.querySelector('code.language-python');
+        if (renderedBlock) {
+            // Collect all nested spans as text
+            const spans = Array.from(renderedBlock.querySelectorAll('span'));
+            const codeText = spans.map(span => span.textContent).join('').trim();
+            if (codeText) return codeText;
+        }
+
+        console.warn("⚠️ No code found in Monaco or rendered spans.");
+        return null;
+    } catch (err) {
+        console.error("❌ Error accessing code:", err);
+        return null;
+    }
 };
 
-// Solving timer logic
+// Timer
 let solvingStart = null;
 function startSolvingTimer() {
     if (!solvingStart) {
@@ -49,21 +68,30 @@ function getTimeTakenSec() {
 }
 window.getSolvingTimeInSeconds = getTimeTakenSec;
 
-// Start timer on code edit
 window.addEventListener("keydown", () => {
     if (document.querySelector(".monaco-editor")) {
         startSolvingTimer();
     }
 });
 
-// Send attempt data to backend
+let retryCount = 0;
+const MAX_RETRIES = 10;
+
 async function sendProblemAttempt() {
     const { title, slug } = window.getCurrentProblemInfo() || {};
     const code = window.getCurrentSolution();
     const durationSec = window.getSolvingTimeInSeconds?.() ?? null;
 
+    console.log("📦 Attempt data:", { slug, durationSec, code });
+
     if (!slug || !code || !durationSec) {
-        console.warn("Missing problem data. Skipping log.");
+        retryCount++;
+        if (retryCount < MAX_RETRIES) {
+            console.warn("⏳ Retrying — missing problem data", { slug, durationSec, code });
+            setTimeout(sendProblemAttempt, 1000);
+        } else {
+            console.warn("🛑 Gave up after max retries.");
+        }
         return;
     }
 
@@ -96,26 +124,22 @@ async function sendProblemAttempt() {
     .then((res) => res.json())
     .then((res) => {
         console.log("✅ Logged attempt:", res);
-    
+
         const msg = "🎉 Great job!";
         const sub = res.isOptimal
             ? "Your solution was optimal!"
             : "Nice work — but there's a cleaner way.";
         const action = res.isOptimal ? undefined : "Click to view a better solution";
-    
-        chrome.runtime.sendMessage({
+
+        window.postMessage({
             type: "SHOW_FEEDBACK",
-            payload: {
-                message: msg,
-                subtext: sub,
-                actionText: action
-            }
-        });
+            payload: { message: msg, subtext: sub, actionText: action }
+        }, "*");
     })
     .catch((err) => console.error("❌ Logging failed:", err));
 }
 
-// Mutation observer to watch for verdicts
+// Mutation observer
 let lastStored = "";
 let lastLoggedTime = 0;
 
@@ -138,7 +162,7 @@ const observer = new MutationObserver(() => {
 
         lastStored = signature;
         lastLoggedTime = now;
-
+        retryCount = 0; // reset retry tracker
         sendProblemAttempt();
     }
 });
@@ -147,3 +171,25 @@ observer.observe(document.body, {
     childList: true,
     subtree: true
 });
+
+function startActivityPinger() {
+    setInterval(async () => {
+        const { uid, token } = await new Promise((resolve) => {
+            chrome.storage.local.get(['uid', 'token'], resolve);
+        });
+
+        if (!uid || !token) return;
+
+        fetch(`http://localhost:8000/updateActivity/${uid}`, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        }).then(() => {
+            console.log("📡 Activity ping sent");
+        }).catch(console.error);
+    }, 5 * 60 * 1000); // every 5 mins
+}
+
+// Start pinging when LeetCode loads
+startActivityPinger();
