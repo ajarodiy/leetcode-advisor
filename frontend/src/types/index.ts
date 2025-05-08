@@ -28,3 +28,11 @@ export interface Solution {
     timeComplexity: string;
     spaceComplexity: string;
 }
+
+export interface FloatingFeedbackProps {
+    message: string;
+    subtext: string;
+    actionText?: string;
+    onAction?: () => void;
+    onDismiss: () => void;
+}

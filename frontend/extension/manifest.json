@@ -32,7 +32,8 @@
     "web_accessible_resources": [
         {
             "resources": [
-                "page-inject.js"
+                "page-inject.js",
+                "feedback.bundle.js"
             ],
             "matches": [
                 "<all_urls>"

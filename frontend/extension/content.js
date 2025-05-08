@@ -94,7 +94,24 @@ async function sendProblemAttempt() {
         body: JSON.stringify(payload),
     })
     .then((res) => res.json())
-    .then((res) => console.log("✅ Logged attempt:", res))
+    .then((res) => {
+        console.log("✅ Logged attempt:", res);
+    
+        const msg = "🎉 Great job!";
+        const sub = res.isOptimal
+            ? "Your solution was optimal!"
+            : "Nice work — but there's a cleaner way.";
+        const action = res.isOptimal ? undefined : "Click to view a better solution";
+    
+        chrome.runtime.sendMessage({
+            type: "SHOW_FEEDBACK",
+            payload: {
+                message: msg,
+                subtext: sub,
+                actionText: action
+            }
+        });
+    })
     .catch((err) => console.error("❌ Logging failed:", err));
 }
 

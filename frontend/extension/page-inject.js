@@ -49,3 +49,21 @@ window.addEventListener("keydown", (e) => {
 });
 
 window.getSolvingTimeInSeconds = getTimeTakenSec;
+
+(function () {
+    const rootId = "leetcode-react-feedback-root";
+
+    if (!document.getElementById(rootId)) {
+        const container = document.createElement("div");
+        container.id = rootId;
+        container.style.position = "fixed";
+        container.style.bottom = "0";
+        container.style.right = "0";
+        container.style.zIndex = "999999";
+        document.body.appendChild(container);
+    }
+})();
+
+const script = document.createElement("script");
+script.src = chrome.runtime.getURL("feedback.bundle.js");
+document.body.appendChild(script);

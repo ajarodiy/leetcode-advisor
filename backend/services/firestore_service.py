@@ -4,17 +4,30 @@ from datetime import datetime
 from firebase_admin import firestore
 
 def save_problem_attempt(user_id: str, problem_slug: str, payload: ProblemSubmitRequest):
-    ref = db.collection("users").document(user_id).collection("problems").document(problem_slug)
+    user_ref = db.collection("users").document(user_id)
+    problem_ref = user_ref.collection("problems").document(problem_slug)
 
-    attempt_entry = payload.attempt.dict()
-    attempt_entry["timestamp"] = attempt_entry.get("timestamp") or datetime.utcnow()
+    attempt_data = {
+        "timestamp": datetime.utcnow(),
+        "durationSec": payload.durationSec,
+        "code": payload.code,
+        "language": payload.language,
+        "isOptimal": payload.isOptimal,
+        "usedHint": payload.usedHint
+    }
 
-    ref.set({
-        "title": payload.title,
-        "topicTags": payload.tags,
-        "averageSolveTime": payload.avgTime,
-        "attempts": firestore.ArrayUnion([attempt_entry])
-    }, merge=True)
+    problem_doc = problem_ref.get()
+    if problem_doc.exists:
+        problem_ref.update({
+            "attempts": firestore.ArrayUnion([attempt_data])
+        })
+    else:
+        problem_ref.set({
+            "title": problem_slug.replace("-", " ").title(),
+            "topicTags": [],
+            "averageSolveTime": payload.durationSec,
+            "attempts": [attempt_data]
+        })
 
 def get_user_data_for_insights(user_id: str):
     problem_ref = db.collection("users").document(user_id).collection("problems")
